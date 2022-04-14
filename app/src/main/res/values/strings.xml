@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">APP X</string>
+    <string name="logout">Logout</string>
+    <string name="settings">Settings</string>
+</resources>
