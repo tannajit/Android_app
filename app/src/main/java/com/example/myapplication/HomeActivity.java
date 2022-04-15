@@ -299,8 +299,12 @@ public class HomeActivity extends AppCompatActivity {
                     if (isConnectedToThisServer("https://www.google.com/")) {
                         clicked = 0;
                         System.out.println("connected");
+                        connected = true;
+                        Log.i("Connection Status","@@@@@@@@ "+connected);
                     } else {
                         System.out.println("not connected");
+                        connected = false;
+                        Log.i("Connection Status","@@@@@@@@ "+connected);
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
@@ -450,7 +454,11 @@ public class HomeActivity extends AppCompatActivity {
         String id = user.get(SessionManager.ID);
         Boolean checkInsertData = DB.insertMapData(nfc_qr,nfc_uuid,ticket_qr,id,"false");
         if(checkInsertData == true){
-            Toast.makeText(getApplicationContext(),"Inserted in sqlite", Toast.LENGTH_SHORT).show();
+            showDialog();
+            /*showAlert("","Les données sont sauvegardées dans le cache avec succés");*/
+            //Toast.makeText(getApplicationContext(), "Le mapping se fait avec succès", Toast.LENGTH_LONG).show();
+            Nfc.setUUID(null);
+            startActivity(new Intent(getApplicationContext(),HomeActivity.class));
         }else{
             Toast.makeText(getApplicationContext(),"Not inserted in sqlite", Toast.LENGTH_SHORT).show();
         }
@@ -544,68 +552,73 @@ public class HomeActivity extends AppCompatActivity {
 
 
 
+        if(connected){
+            StringRequest stringRequest= new StringRequest(Request.Method.POST, URLs.URL_MAP,
+                    new Response.Listener<String>() {
+                        @Override
+                        public void onResponse(String response) {
 
-        StringRequest stringRequest= new StringRequest(Request.Method.POST, URLs.URL_MAP,
-                new Response.Listener<String>() {
-                    @Override
-                    public void onResponse(String response) {
+                            try {
+                                JSONObject jsonObject= new JSONObject(response);
+                                String success= jsonObject.getString("success");
+                                if(success.equals("1")){
 
-                        try {
-                            JSONObject jsonObject= new JSONObject(response);
-                            String success= jsonObject.getString("success");
-                            if(success.equals("1")){
-
-                                Toast.makeText(getApplicationContext(), "Le mapping se fait avec succès", Toast.LENGTH_LONG).show();
+                                    Toast.makeText(getApplicationContext(), "Le mapping se fait avec succès", Toast.LENGTH_LONG).show();
                                 /*nfc_qr_tv.setText(null);
                                 nfc_qr_tv.setVisibility(View.VISIBLE);
                                 nfc_uuid_tv.setText(null);
                                 nfc_uuid_tv.setVisibility(View.VISIBLE);
                                 ticket_tv.setText(null);
                                 ticket_tv.setVisibility(View.VISIBLE);*/
-                                Nfc.setUUID(null);
-                                startActivity(new Intent(getApplicationContext(),HomeActivity.class));
+                                    Nfc.setUUID(null);
+                                    startActivity(new Intent(getApplicationContext(),HomeActivity.class));
 
-                            }else if(success.equals("0")) {
+                                }else if(success.equals("0")) {
 
-                                showAlert("Erreur de serveur","Il y a une erreur dans le serveur, veuillez réessayer plus tard.");
+                                    showAlert("Erreur de serveur","Il y a une erreur dans le serveur, veuillez réessayer plus tard.");
 
+                                }
+
+
+                            }catch (Exception ee){
+                                Toast.makeText(getApplicationContext(), " Error", Toast.LENGTH_LONG).show();
                             }
-
-
-                        }catch (Exception ee){
-                            Toast.makeText(getApplicationContext(), " Error", Toast.LENGTH_LONG).show();
                         }
-                    }
 
 
-                },
-                new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
+                    },
+                    new Response.ErrorListener() {
+                        @Override
+                        public void onErrorResponse(VolleyError error) {
 
-                        Toast.makeText(getApplicationContext(),"Error :"+error.toString(),Toast.LENGTH_LONG).show();
+                            Toast.makeText(getApplicationContext(),"Error :"+error.toString(),Toast.LENGTH_LONG).show();
 
-                    }
-                }){
-            @Override
-            protected Map<String, String> getParams() throws AuthFailureError {
-                Map<String,String> params = new HashMap<>();
-                params.put("nfc_qr",nfc_qr);
-                params.put("nfc_uuid",nfc_uuid);
-                params.put("ticket_qr",ticket_qr);
-                params.put("id_auditor",id);
-                params.put("latitude",latitude);
-                params.put("longitude",longitude);
-                System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
-                System.out.println(latitude+","+longitude);
-                return params;
-            }
-        };
-        RequestQueue requestQueue= Volley.newRequestQueue(this);
-        requestQueue.add(stringRequest);
+                        }
+                    }){
+                @Override
+                protected Map<String, String> getParams() throws AuthFailureError {
+                    Map<String,String> params = new HashMap<>();
+                    params.put("nfc_qr",nfc_qr);
+                    params.put("nfc_uuid",nfc_uuid);
+                    params.put("ticket_qr",ticket_qr);
+                    params.put("id_auditor",id);
+                    params.put("latitude",latitude);
+                    params.put("longitude",longitude);
+                    System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
+                    System.out.println(latitude+","+longitude);
+                    return params;
+                }
+            };
+            RequestQueue requestQueue= Volley.newRequestQueue(this);
+            requestQueue.add(stringRequest);
+            //*************End Register*************
+            setResult(RESULT_OK, null);
+        }else{
+            saveToSqlite();
+        }
 
-        //*************End Register*************
-        setResult(RESULT_OK, null);
+
+
 
     }
 

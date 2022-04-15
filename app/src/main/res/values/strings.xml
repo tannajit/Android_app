@@ -2,4 +2,6 @@
     <string name="app_name">APP X</string>
     <string name="logout">Logout</string>
     <string name="settings">Settings</string>
+    <string name="no_wifi_title">Vous avez été déconnecté</string>
+    <string name="no_wifi_text">Vous pouvez continuer le processus de mapping, les données seront sauvegardées dans le cache. </string>
 </resources>
