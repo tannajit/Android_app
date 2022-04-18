@@ -2,8 +2,6 @@ package com.example.myapplication;
 
 
 
-import static androidx.core.content.PackageManagerCompat.LOG_TAG;
-
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.ActivityManager;
@@ -16,10 +14,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
-import android.location.Address;
-import android.location.Geocoder;
-import android.location.Location;
-import android.location.LocationListener;
+import android.database.Cursor;
 import android.location.LocationManager;
 
 import com.google.android.gms.common.api.ApiException;
@@ -34,14 +29,10 @@ import com.google.android.gms.location.LocationSettingsStatusCodes;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import android.net.ConnectivityManager;
-import android.net.Network;
-import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
-import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
-import android.speech.tts.TextToSpeech;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -58,7 +49,6 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 
 import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
@@ -68,13 +58,9 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
 import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
 
-import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.IOException;
@@ -83,12 +69,9 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-
-import javax.net.ssl.HttpsURLConnection;
 
 
 public class HomeActivity extends AppCompatActivity {
@@ -112,8 +95,10 @@ public class HomeActivity extends AppCompatActivity {
     TextView nfc_qr_tv;
     TextView nfc_uuid_tv;
     TextView ticket_tv;
-    HashMap<String, String> user = null;
+    TextView sqliTest;
+    HashMap<String , String> user = null;
     DBHelper DB;
+    ArrayList<Mapping> list;
 
     ActivityResultLauncher<String[]> locationPermissionRequest;
     BroadcastReceiver broadcastReceiver;
@@ -188,8 +173,11 @@ public class HomeActivity extends AppCompatActivity {
         nfc_uuid_tv = (TextView)findViewById(R.id.nfc_uuid);
         ticket_tv = (TextView)findViewById(R.id.ticket_qr_code);
 
+        //sqliTest = (TextView)findViewById(R.id.sqlite);
         // datbase
         DB = new DBHelper(this);
+
+
 
         getSupportActionBar().setDisplayShowHomeEnabled(true);
         getSupportActionBar().setIcon(R.drawable.logo_icon);
@@ -254,7 +242,7 @@ public class HomeActivity extends AppCompatActivity {
             public void onClick(View v) {
 
 
-                if(isGPSenabled()){
+                /*if(isGPSenabled()){
                     if(latitude != null && longitude != null){
                         map();
                     }else{
@@ -262,7 +250,8 @@ public class HomeActivity extends AppCompatActivity {
                     }
                 }else{
                     showAlert("Localisation Error","Cette action ne sera pas exécutée tant que vous n'aurez pas activé votre localisation.");
-                }
+                }*/
+                sendToServer();
                 /*if(isConnectedToThisServer("https://www.google.com/")) {
                     Toast.makeText(getApplicationContext(), "Yes, Connected to Google", Toast.LENGTH_SHORT)
                             .show();
@@ -283,6 +272,100 @@ public class HomeActivity extends AppCompatActivity {
             }
 
         });
+    }
+
+
+    public void sendToServer(){
+        Cursor cursor=DB.getdata();
+
+        try{
+            if (cursor.moveToFirst()){
+
+                while (!cursor.isAfterLast()) {
+                    final String nfc_qr = cursor.getString(0);
+                    final String nfc_uuid = cursor.getString(1);
+                    final String nrc_qr = cursor.getString(2);
+                    final String audit_id = cursor.getString(3);
+
+                    StringRequest stringRequest= new StringRequest(Request.Method.POST, URLs.URL_MAP,
+                            new Response.Listener<String>() {
+                                @Override
+                                public void onResponse(String response) {
+
+                                    try {
+                                        JSONObject jsonObject= new JSONObject(response);
+                                        String success= jsonObject.getString("success");
+                                        if(success.equals("1")){
+
+                                            Toast.makeText(getApplicationContext(), "Le mapping se fait avec succès", Toast.LENGTH_LONG).show();
+                                    /*nfc_qr_tv.setText(null);
+                                    nfc_qr_tv.setVisibility(View.VISIBLE);
+                                    nfc_uuid_tv.setText(null);
+                                    nfc_uuid_tv.setVisibility(View.VISIBLE);
+                                    ticket_tv.setText(null);
+                                    ticket_tv.setVisibility(View.VISIBLE);*/
+                                            /*Nfc.setUUID(null);
+                                            startActivity(new Intent(getApplicationContext(),HomeActivity.class));
+*/
+                                        }else if(success.equals("0")) {
+
+                                            showAlert("Erreur de serveur","Il y a une erreur dans le serveur, veuillez réessayer plus tard.");
+
+                                        }
+
+
+                                    }catch (Exception ee){
+                                        Toast.makeText(getApplicationContext(), " Error", Toast.LENGTH_LONG).show();
+                                    }
+                                }
+
+
+                            },
+                            new Response.ErrorListener() {
+                                @Override
+                                public void onErrorResponse(VolleyError error) {
+
+                                    //showAlert("Erreur de serveur","Il y a une erreur dans le serveur, veuillez réessayer plus tard.");
+                                    Toast.makeText(getApplicationContext(),"Error :"+error.toString(),Toast.LENGTH_LONG).show();
+
+                                }
+                            }){
+                        @Override
+                        protected Map<String, String> getParams() throws AuthFailureError {
+                            Map<String,String> params = new HashMap<>();
+                            params.put("nfc_qr",nfc_qr);
+                            params.put("nfc_uuid",nfc_uuid);
+                            params.put("ticket_qr",nrc_qr);
+                            params.put("id_auditor",audit_id);
+                            params.put("latitude",latitude);
+                            params.put("longitude",longitude);
+                            System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
+                            System.out.println(latitude+","+longitude);
+                            return params;
+                        }
+                    };
+                    RequestQueue requestQueue= Volley.newRequestQueue(this);
+                    requestQueue.add(stringRequest);
+
+                    //*************End Register*************
+                    setResult(RESULT_OK, null);
+
+
+
+                }
+                    /*String varaible1 = cursor.getString(0);
+                    String varaible2 = cursor.getString(1);
+                    String varaible3 = cursor.getString(2);
+                    String varaible4 = cursor.getString(3);
+                    String varaible5 = cursor.getString(4);
+                    sqliTest.setText(varaible1+"||"+varaible2+"||"+varaible3+"||"+varaible4+"||"+varaible5);*/
+
+                sqliTest.setText(""+list);
+
+            }
+        }finally {
+            cursor.close();
+        }
     }
 
 
@@ -426,6 +509,7 @@ public class HomeActivity extends AppCompatActivity {
         });
 
     }
+
     public void showDialog(){
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -447,6 +531,7 @@ public class HomeActivity extends AppCompatActivity {
     }
 
     public void saveToSqlite(){
+        send.setEnabled(true);
         String nfc_qr = nfc_qr_tv.getText().toString();
         String nfc_uuid = nfc_uuid_tv.getText().toString();
         String ticket_qr = ticket_tv.getText().toString();
@@ -456,11 +541,11 @@ public class HomeActivity extends AppCompatActivity {
         if(checkInsertData == true){
             showDialog();
             /*showAlert("","Les données sont sauvegardées dans le cache avec succés");*/
-            //Toast.makeText(getApplicationContext(), "Le mapping se fait avec succès", Toast.LENGTH_LONG).show();
+            Toast.makeText(getApplicationContext(), "Le mapping se fait avec succès", Toast.LENGTH_LONG).show();
             Nfc.setUUID(null);
             startActivity(new Intent(getApplicationContext(),HomeActivity.class));
         }else{
-            Toast.makeText(getApplicationContext(),"Not inserted in sqlite", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(),"Already Inserted", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -481,11 +566,44 @@ public class HomeActivity extends AppCompatActivity {
         new android.os.Handler().postDelayed(
                 new Runnable() {
                     public void run() {
-                        // On complete call either onSignupSuccess or onSignupFailed
-                        // depending on success
-                        onSendSuccess();
-                        // onSignupFailed();
-                        progressDialog.dismiss();
+
+                        try {
+                            Thread.sleep(10000);
+                            System.out.println("thread running");
+
+                            if (isConnectedToThisServer("https://www.google.com/")) {
+                                onSendSuccess();
+                                progressDialog.dismiss();
+                            } else {
+
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        progressDialog.dismiss();
+                                        android.app.AlertDialog.Builder builder1 = new android.app.AlertDialog.Builder(HomeActivity.this);
+                                        builder1.setMessage("Vue que vous êtes pas connecté, les données seront enregistrés dans le cache. Nous vous informerons dès qu'il seront envoyés au serveur.");
+                                        builder1.setCancelable(true);
+
+                                        builder1.setPositiveButton(
+                                                "OK",
+                                                new DialogInterface.OnClickListener() {
+                                                    public void onClick(DialogInterface dialog, int id) {
+                                                        saveToSqlite();
+                                                    }
+                                                });
+                                        android.app.AlertDialog alert11 = builder1.create();
+                                        alert11.show();
+                                        showDialog();
+
+
+                                    }
+                                });
+
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+
                     }
                 }, 3000);
     }
@@ -552,7 +670,7 @@ public class HomeActivity extends AppCompatActivity {
 
 
 
-        if(connected){
+        //if(connected){
             StringRequest stringRequest= new StringRequest(Request.Method.POST, URLs.URL_MAP,
                     new Response.Listener<String>() {
                         @Override
@@ -564,12 +682,12 @@ public class HomeActivity extends AppCompatActivity {
                                 if(success.equals("1")){
 
                                     Toast.makeText(getApplicationContext(), "Le mapping se fait avec succès", Toast.LENGTH_LONG).show();
-                                /*nfc_qr_tv.setText(null);
-                                nfc_qr_tv.setVisibility(View.VISIBLE);
-                                nfc_uuid_tv.setText(null);
-                                nfc_uuid_tv.setVisibility(View.VISIBLE);
-                                ticket_tv.setText(null);
-                                ticket_tv.setVisibility(View.VISIBLE);*/
+                                    /*nfc_qr_tv.setText(null);
+                                    nfc_qr_tv.setVisibility(View.VISIBLE);
+                                    nfc_uuid_tv.setText(null);
+                                    nfc_uuid_tv.setVisibility(View.VISIBLE);
+                                    ticket_tv.setText(null);
+                                    ticket_tv.setVisibility(View.VISIBLE);*/
                                     Nfc.setUUID(null);
                                     startActivity(new Intent(getApplicationContext(),HomeActivity.class));
 
@@ -591,6 +709,7 @@ public class HomeActivity extends AppCompatActivity {
                         @Override
                         public void onErrorResponse(VolleyError error) {
 
+                            //showAlert("Erreur de serveur","Il y a une erreur dans le serveur, veuillez réessayer plus tard.");
                             Toast.makeText(getApplicationContext(),"Error :"+error.toString(),Toast.LENGTH_LONG).show();
 
                         }
@@ -613,10 +732,6 @@ public class HomeActivity extends AppCompatActivity {
             requestQueue.add(stringRequest);
             //*************End Register*************
             setResult(RESULT_OK, null);
-        }else{
-            saveToSqlite();
-        }
-
 
 
 
