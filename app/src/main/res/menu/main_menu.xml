@@ -4,4 +4,7 @@
     <item android:id="@+id/logout"
         android:title="@string/logout"
         app:showAsAction="never"/>
+    <item android:id="@+id/version"
+        android:title="@string/version"
+        app:showAsAction="never"/>
 </menu>

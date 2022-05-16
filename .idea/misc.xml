@@ -3,7 +3,9 @@
   <component name="DesignSurface">
     <option name="filePathToZoomLevelMap">
       <map>
+        <entry key="..\:/FGD Projects/Ndam Lina/MyApplication/app/src/main/res/menu/main_menu.xml" value="0.13783783783783785" />
         <entry key="..\:/MyApplication/app/src/main/res/drawable/custom_input.xml" value="0.137" />
+        <entry key="..\:/MyApplication/app/src/main/res/drawable/dg_bg.xml" value="0.1435" />
         <entry key="..\:/MyApplication/app/src/main/res/drawable/round_btn_blue.xml" value="0.1" />
         <entry key="..\:/MyApplication/app/src/main/res/font/montserrat.xml" value="0.15677083333333333" />
         <entry key="..\:/MyApplication/app/src/main/res/layout/activity_home.xml" value="0.1265625" />
@@ -13,6 +15,8 @@
         <entry key="..\:/MyApplication/app/src/main/res/layout/activity_register.xml" value="0.1265625" />
         <entry key="..\:/MyApplication/app/src/main/res/layout/change_pass_dialog.xml" value="0.12252252252252252" />
         <entry key="..\:/MyApplication/app/src/main/res/layout/no_connection_dialog.xml" value="0.1" />
+        <entry key="..\:/MyApplication/app/src/main/res/layout/nrc_error_dialog.xml" value="0.11531531531531532" />
+        <entry key="..\:/MyApplication/app/src/main/res/layout/success_dialog.xml" value="0.15625" />
         <entry key="..\:/MyApplication/app/src/main/res/menu/main_menu.xml" value="0.1265625" />
       </map>
     </option>

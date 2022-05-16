@@ -15,6 +15,8 @@ import android.content.IntentFilter;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.location.LocationManager;
 
 import com.google.android.gms.common.api.ApiException;
@@ -78,6 +80,7 @@ public class HomeActivity extends AppCompatActivity {
     int mode=0;
     public static String latitude;
     public static String longitude;
+    public static String app_version = "1.1";
 
     public static int clicked =0;
 
@@ -234,15 +237,15 @@ public class HomeActivity extends AppCompatActivity {
             }
         });
 
-        runConnectionThread();
+        //runConnectionThread();
 
-        startService(new Intent( this, YourService.class ) );
+        //startService(new Intent( this, YourService.class ) );
         send.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
 
 
-                /*if(isGPSenabled()){
+                if(isGPSenabled()){
                     if(latitude != null && longitude != null){
                         map();
                     }else{
@@ -250,23 +253,10 @@ public class HomeActivity extends AppCompatActivity {
                     }
                 }else{
                     showAlert("Localisation Error","Cette action ne sera pas exécutée tant que vous n'aurez pas activé votre localisation.");
-                }*/
-                sendToServer();
-                /*if(isConnectedToThisServer("https://www.google.com/")) {
-                    Toast.makeText(getApplicationContext(), "Yes, Connected to Google", Toast.LENGTH_SHORT)
-                            .show();
-                } else {
-                    Toast.makeText(getApplicationContext(), "No Google Connection", Toast.LENGTH_SHORT)
-                            .show();
-                }*/
+                }
 
-                /*if(hostAvailable("www.google.com", 80)) {
-                    Toast.makeText(getApplicationContext(), "Yes, Connected to Google", Toast.LENGTH_SHORT)
-                            .show();
-                } else {
-                    Toast.makeText(getApplicationContext(), "No Google Connection", Toast.LENGTH_SHORT)
-                            .show();
-                }*/
+
+                //sendToServer();
 
 
             }
@@ -339,6 +329,7 @@ public class HomeActivity extends AppCompatActivity {
                             params.put("id_auditor",audit_id);
                             params.put("latitude",latitude);
                             params.put("longitude",longitude);
+                            //params.put("app_version",app_version);
                             System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
                             System.out.println(latitude+","+longitude);
                             return params;
@@ -349,8 +340,6 @@ public class HomeActivity extends AppCompatActivity {
 
                     //*************End Register*************
                     setResult(RESULT_OK, null);
-
-
 
                 }
                     /*String varaible1 = cursor.getString(0);
@@ -367,7 +356,6 @@ public class HomeActivity extends AppCompatActivity {
             cursor.close();
         }
     }
-
 
     // Thread runnable
     public void runConnectionThread(){
@@ -441,21 +429,7 @@ public class HomeActivity extends AppCompatActivity {
         }
         return false;
     }
-    private void registerNetworkBroadcast(){
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N){
-            registerReceiver(broadcastReceiver,new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
-        }
-    }
 
-    private void unregisterNetwork(){
-        try {
-            unregisterReceiver(broadcastReceiver);
-        }catch (IllegalArgumentException e){
-
-            e.printStackTrace();
-
-        }
-    }
 
     @Override
     protected void onDestroy() {
@@ -550,6 +524,7 @@ public class HomeActivity extends AppCompatActivity {
     }
 
     public void map(){
+        //System.out.println("Entred");
         send.setEnabled(false);
 
         if (!validate()) {
@@ -563,11 +538,54 @@ public class HomeActivity extends AppCompatActivity {
         progressDialog.setMessage("Mapping en cours...");
         progressDialog.show();
 
-        new android.os.Handler().postDelayed(
-                new Runnable() {
-                    public void run() {
+        final String ticket_qr = ticket_tv.getText().toString();
+        StringRequest stringRequest= new StringRequest(Request.Method.POST, URLs.URL_CHECK_NRC,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
 
                         try {
+                            JSONObject jsonObject= new JSONObject(response);
+                            String success= jsonObject.getString("success");
+                            if(success.equals("1")){
+
+                                progressDialog.dismiss();
+                                send.setEnabled(true);
+
+                                AlertDialog.Builder builder = new AlertDialog.Builder(HomeActivity.this);
+                                LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                                View view = inflater.inflate(R.layout.nrc_error_dialog,null);
+                                Button btnOk = view.findViewById(R.id.buttonOk);
+                                builder.setView(view);
+
+                                final Dialog dialog = builder.create();
+                                //dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+                                dialog.show();
+
+                                btnOk.setOnClickListener(new View.OnClickListener() {
+                                    @Override
+                                    public void onClick(View v) {
+
+                                        dialog.dismiss();
+                                        Nfc.setUUID(null);
+                                        startActivity(new Intent(getApplicationContext(),HomeActivity.class));
+                                    }
+                                });
+
+
+                            }else if(success.equals("0")) {
+
+                                new android.os.Handler().postDelayed(
+                                        new Runnable() {
+                                            public void run() {
+
+                                                // On complete call either onSignupSuccess or onSignupFailed
+                                                // depending on success
+                                                onSendSuccess();
+                                                progressDialog.dismiss();
+
+                                                // this scope of code for offline functionality
+                       /* try {
                             Thread.sleep(10000);
                             System.out.println("thread running");
 
@@ -602,10 +620,60 @@ public class HomeActivity extends AppCompatActivity {
                             }
                         } catch (Exception e) {
                             e.printStackTrace();
+                        }*/
+
+                                            }
+                                        }, 3000);
+
+                                // onSignupFailed();
+
+                            }
+
+
+                        }catch (Exception ee){
+                            Toast.makeText(getApplicationContext(), " Error", Toast.LENGTH_LONG).show();
+                        }
+                    }
+
+
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        send.setEnabled(true);
+                        progressDialog.dismiss();
+                        //showAlert("Erreur de serveur","Il y a une erreur dans le serveur, veuillez réessayer plus tard.");
+                        //Toast.makeText(getApplicationContext(),"Error :"+error.toString(),Toast.LENGTH_LONG).show();
+                        String find = "TimeoutError";
+                        String find2 = "Failed to connect to";
+                        boolean val = error.toString().contains(find);
+                        boolean val2 = error.toString().contains(find2);
+                        if(val) {
+                            System.out.println("String found: " + find);
+                            showAlert("Erreur de connexion", "Verifier votre connexion et continue");
+                        }else if(val2){
+                            showAlert("Erreur de serveur", "Le serveur est fermé");
+
+                        }else{
+                            System.out.println("string not found");
                         }
 
+
                     }
-                }, 3000);
+                }){
+            @Override
+            protected Map<String, String> getParams() throws AuthFailureError {
+                Map<String,String> params = new HashMap<>();
+                params.put("nrc",ticket_qr);
+                return params;
+            }
+        };
+        RequestQueue requestQueue= Volley.newRequestQueue(HomeActivity.this);
+        requestQueue.add(stringRequest);
+        //*************End Register*************
+        setResult(RESULT_OK, null);
+
+
     }
 
     public boolean validate() {
@@ -660,6 +728,7 @@ public class HomeActivity extends AppCompatActivity {
     }
 
     public void onSendSuccess(){
+
         send.setEnabled(true);
 
         final String nfc_qr = nfc_qr_tv.getText().toString();
@@ -668,28 +737,38 @@ public class HomeActivity extends AppCompatActivity {
         user = sessionManager.getUserDetails();
         final String id = user.get(SessionManager.ID);
 
-
-
         //if(connected){
             StringRequest stringRequest= new StringRequest(Request.Method.POST, URLs.URL_MAP,
                     new Response.Listener<String>() {
                         @Override
                         public void onResponse(String response) {
+                            System.out.println("#################################"+response);
 
                             try {
                                 JSONObject jsonObject= new JSONObject(response);
                                 String success= jsonObject.getString("success");
                                 if(success.equals("1")){
 
-                                    Toast.makeText(getApplicationContext(), "Le mapping se fait avec succès", Toast.LENGTH_LONG).show();
-                                    /*nfc_qr_tv.setText(null);
-                                    nfc_qr_tv.setVisibility(View.VISIBLE);
-                                    nfc_uuid_tv.setText(null);
-                                    nfc_uuid_tv.setVisibility(View.VISIBLE);
-                                    ticket_tv.setText(null);
-                                    ticket_tv.setVisibility(View.VISIBLE);*/
-                                    Nfc.setUUID(null);
-                                    startActivity(new Intent(getApplicationContext(),HomeActivity.class));
+                                    AlertDialog.Builder builder = new AlertDialog.Builder(HomeActivity.this);
+                                    LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                                    View view = inflater.inflate(R.layout.success_dialog,null);
+                                    Button btnOk = view.findViewById(R.id.buttonOk);
+                                    builder.setView(view);
+
+                                    final Dialog dialog = builder.create();
+                                    //dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+                                    dialog.show();
+
+                                    btnOk.setOnClickListener(new View.OnClickListener() {
+                                        @Override
+                                        public void onClick(View v) {
+
+                                            dialog.dismiss();
+                                            Nfc.setUUID(null);
+                                            startActivity(new Intent(getApplicationContext(),HomeActivity.class));
+                                        }
+                                    });
+
 
                                 }else if(success.equals("0")) {
 
@@ -699,18 +778,33 @@ public class HomeActivity extends AppCompatActivity {
 
 
                             }catch (Exception ee){
-                                Toast.makeText(getApplicationContext(), " Error", Toast.LENGTH_LONG).show();
+
+                                Toast.makeText(getApplicationContext(), "error: "+ee, Toast.LENGTH_LONG).show();
+                                send.setEnabled(true);
+
                             }
                         }
-
-
                     },
                     new Response.ErrorListener() {
                         @Override
                         public void onErrorResponse(VolleyError error) {
 
-                            //showAlert("Erreur de serveur","Il y a une erreur dans le serveur, veuillez réessayer plus tard.");
-                            Toast.makeText(getApplicationContext(),"Error :"+error.toString(),Toast.LENGTH_LONG).show();
+                            String find = "TimeoutError";
+                            String find2 = "Failed to connect to";
+                            boolean val = error.toString().contains(find);
+                            boolean val2 = error.toString().contains(find2);
+                            if(val) {
+                                System.out.println("String found: " + find);
+                                showAlert("Erreur de connexion", "Verifier votre connexion et continue");
+                            }else if(val2){
+                                showAlert("Erreur de serveur", "Le serveur est fermé");
+
+
+                            }else{
+                                System.out.println("string not found");
+                            }
+                            //
+                            //Toast.makeText(getApplicationContext(),"2222 :"+error.toString(),Toast.LENGTH_LONG).show();
 
                         }
                     }){
@@ -723,6 +817,7 @@ public class HomeActivity extends AppCompatActivity {
                     params.put("id_auditor",id);
                     params.put("latitude",latitude);
                     params.put("longitude",longitude);
+                    params.put("app_version",app_version);
                     System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
                     System.out.println(latitude+","+longitude);
                     return params;
@@ -738,25 +833,7 @@ public class HomeActivity extends AppCompatActivity {
     }
 
 
-    private boolean isNetworkConnected() {
 
-        if (isNetworkAvailable()) {
-            try {
-                HttpURLConnection urlc = (HttpURLConnection) (new URL("http://www.google.com").openConnection());
-                urlc.setRequestProperty("User-Agent", "Test");
-                urlc.setRequestProperty("Connection", "close");
-                urlc.setConnectTimeout(1500);
-                urlc.connect();
-                return (urlc.getResponseCode() == 200);
-            } catch (IOException e) {
-                Toast.makeText(getApplicationContext(),"Connected", Toast.LENGTH_SHORT).show();
-            }
-        } else {
-            Toast.makeText(getApplicationContext(),"not Connected", Toast.LENGTH_SHORT).show();
-        }
-        return false;
-
-    }
 
     public boolean isNetworkAvailable() {
         ConnectivityManager connectivityManager
@@ -884,6 +961,9 @@ public class HomeActivity extends AppCompatActivity {
             case R.id.logout:
                 sessionManager.logout();
                 return(true);
+            case R.id.version:
+                showAlert("App Version","Vous utilisez la version 1.1 de l'application");
+                return(true);
         }
 
         return(super.onOptionsItemSelected(item));
@@ -1002,7 +1082,41 @@ public class HomeActivity extends AppCompatActivity {
         }
     }
 
+    private boolean isNetworkConnected() {
 
+        if (isNetworkAvailable()) {
+            try {
+                HttpURLConnection urlc = (HttpURLConnection) (new URL("http://www.google.com").openConnection());
+                urlc.setRequestProperty("User-Agent", "Test");
+                urlc.setRequestProperty("Connection", "close");
+                urlc.setConnectTimeout(1500);
+                urlc.connect();
+                return (urlc.getResponseCode() == 200);
+            } catch (IOException e) {
+                Toast.makeText(getApplicationContext(),"Connected", Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            Toast.makeText(getApplicationContext(),"not Connected", Toast.LENGTH_SHORT).show();
+        }
+        return false;
+
+    }
+
+    private void unregisterNetwork(){
+        try {
+            unregisterReceiver(broadcastReceiver);
+        }catch (IllegalArgumentException e){
+
+            e.printStackTrace();
+
+        }
+    }
+
+    private void registerNetworkBroadcast(){
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N){
+            registerReceiver(broadcastReceiver,new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
+        }
+    }
 
 
 }
