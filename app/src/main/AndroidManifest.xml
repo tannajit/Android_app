@@ -13,19 +13,23 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
+
     <application
-        android:testOnly="false"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher_sr"
         android:label="SalesRecrut"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
+        android:testOnly="false"
         android:theme="@style/Theme.MyApplication"
         android:usesCleartextTraffic="true">
         <activity
-            android:name=".Nfc_reader"
+            android:name=".Synchronisation"
             android:exported="false"
-            >
+            android:launchMode="singleTask"/>
+        <activity
+            android:name=".Nfc_reader"
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.nfc.action.NDEF_DISCOVERED" />
 
@@ -34,13 +38,15 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
-        <service android:name=".YourService"
-            android:label="My service">
-        </service>
+
+        <service
+            android:name=".YourService"
+            android:label="My service" />
 
         <activity
             android:name=".HomeActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:launchMode="singleTask"/>
         <activity
             android:name=".RegisterActivity"
             android:exported="false"
@@ -59,12 +65,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <receiver android:name=".CheckNetwork"
+
+        <receiver
+            android:name=".CheckNetwork"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
             </intent-filter>
         </receiver>
+
         <activity
             android:name=".Capture"
             android:screenOrientation="portrait"

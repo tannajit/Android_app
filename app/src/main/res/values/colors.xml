@@ -13,4 +13,5 @@
     <color name="white">#FFFFFFFF</color>
     <color name="lightGrey">#DADADA</color>
     <color name="error">#B10A0A</color>
+    <color name="orange">#FFD700</color>
 </resources>

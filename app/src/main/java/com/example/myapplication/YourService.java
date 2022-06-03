@@ -20,7 +20,7 @@ public class YourService extends Service {
     Thread thread;
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        /*thread = new Thread(new Runnable() {
+        thread = new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
@@ -36,7 +36,7 @@ public class YourService extends Service {
                 }
             }
         });
-        thread.start();*/
+        thread.start();
         Log.i("SERVICE","########### Service Started #######");
         return START_STICKY;
     }

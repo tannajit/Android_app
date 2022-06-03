@@ -29,10 +29,10 @@ public class CheckNetwork extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         mContext = context;
         if(isConnected(context)){
-            Toast.makeText(context, "Connected to google", Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, "Connected to internet", Toast.LENGTH_SHORT).show();
         }else{
-            Toast.makeText(context, "Not Connected to google", Toast.LENGTH_SHORT).show();
-            showDialog();
+            Toast.makeText(context, "Not Connected ", Toast.LENGTH_SHORT).show();
+            //showDialog();
         }
 
     }

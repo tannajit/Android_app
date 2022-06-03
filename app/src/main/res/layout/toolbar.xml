@@ -1,0 +1,25 @@
+
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:local="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/toolbar"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    local:cardCornerRadius="0dp"
+    local:cardBackgroundColor="@color/colorPrimary"
+
+    >
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="?actionBarSize"
+            android:padding="8dp">
+
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/btn_menu"
+                android:padding="8dp"
+                android:layout_centerVertical="true"
+                android:src="@drawable/ic_menu"/>
+        </RelativeLayout>
+</androidx.cardview.widget.CardView>

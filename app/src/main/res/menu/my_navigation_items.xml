@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:showIn="navigation_view">
+
+    <item
+        android:id="@+id/nav_mapping"
+        android:icon="@drawable/ic_add_mapping"
+        android:title="Mapping"/>
+
+    <item
+        android:id="@+id/nav_sync"
+        android:icon="@drawable/ic_sync"
+        android:title="Synchronisation"/>
+
+    <item
+        android:id="@+id/nav_info"
+        android:icon="@drawable/ic_version"
+        android:title="App Version"/>
+
+    <item
+        android:id="@+id/nav_logout"
+        android:icon="@drawable/ic_logout"
+        android:title="Déconnecter"/>
+</menu>

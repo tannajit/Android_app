@@ -19,6 +19,7 @@ import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.location.LocationManager;
 
+import com.android.volley.DefaultRetryPolicy;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.common.api.ResolvableApiException;
 import com.google.android.gms.location.LocationCallback;
@@ -40,7 +41,9 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -50,7 +53,12 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.app.ActivityCompat;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
@@ -71,6 +79,8 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.URL;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -80,7 +90,7 @@ public class HomeActivity extends AppCompatActivity {
     int mode=0;
     public static String latitude;
     public static String longitude;
-    public static String app_version = "1.1";
+    public static String app_version = "1.2";
 
     public static int clicked =0;
 
@@ -108,6 +118,19 @@ public class HomeActivity extends AppCompatActivity {
 
     // bg thread
     Thread thread;
+    private TextView user_name;
+    private TextView user_email;
+
+
+    DrawerLayout drawerLayout;
+    ImageView btnMenu;
+    RecyclerView recyclerView;
+
+    static ArrayList<String> arrayList = new ArrayList<>();
+    static ArrayList<Integer> iconsList = new ArrayList<>();
+
+    MainAdapter mainAdapter;
+
 
 
     @Override
@@ -115,8 +138,10 @@ public class HomeActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
 
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+
         broadcastReceiver = new CheckNetwork();
-        //registerNetworkBroadcast();
+        registerNetworkBroadcast();
 
         locationPermissionRequest =
             registerForActivityResult(new ActivityResultContracts
@@ -148,6 +173,10 @@ public class HomeActivity extends AppCompatActivity {
                 Manifest.permission.ACCESS_COARSE_LOCATION
         });
 
+        //new session
+        sessionManager = new SessionManager(this);
+        sessionManager.checkLogin();
+
         // location permission
         locationRequest = LocationRequest.create();
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
@@ -157,13 +186,64 @@ public class HomeActivity extends AppCompatActivity {
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
 
 
+        //user info;
+        user_name = (TextView) findViewById (R.id.user_name);
+        user_email = (TextView) findViewById(R.id.user_email);
+
+
+        user = sessionManager.getUserDetails();
+        String name = user.get(SessionManager.NAME);
+        String email = user.get(SessionManager.EMAIL);
+
+        user_name.setText(name);
+        user_email.setText(email);
+        /*LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        View vi = inflater.inflate(R.layout.main_nav_drawer, (ViewGroup) findViewById(R.id.hr));
+        TextView user_name = (TextView)vi.findViewById(R.id.user_name);
+        TextView user_email = (TextView)vi.findViewById(R.id.user_email);
+        user_name.setText(name);
+        user_email.setText(email);*/
+
         // initialize thread
         thread = null;
 
+        drawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
+        btnMenu = (ImageView) findViewById(R.id.btn_menu);
+        recyclerView = findViewById(R.id.recycler_view);
 
-        //new session
-        sessionManager = new SessionManager(this);
-        sessionManager.checkLogin();
+        // clear array list
+
+        arrayList.clear();
+        iconsList.clear();
+
+        // add menu items to list
+        arrayList.add("Mapping");
+        arrayList.add("Synchronisation");
+        arrayList.add("App version");
+        arrayList.add("Logout");
+
+        iconsList.add(R.drawable.ic_add_mapping);
+        iconsList.add(R.drawable.ic_sync);
+        iconsList.add(R.drawable.ic_version);
+        iconsList.add(R.drawable.ic_logout);
+
+        mainAdapter = new MainAdapter(this,arrayList,iconsList,sessionManager);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setAdapter(mainAdapter);
+
+        btnMenu.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                drawerLayout.openDrawer(GravityCompat.START);
+
+
+            }
+        });
+
+
+
+
 
         // buttons
         scan_nfc = (Button)findViewById(R.id.scan_nfc);
@@ -182,8 +262,9 @@ public class HomeActivity extends AppCompatActivity {
 
 
 
-        getSupportActionBar().setDisplayShowHomeEnabled(true);
-        getSupportActionBar().setIcon(R.drawable.logo_icon);
+
+        //getSupportActionBar().setDisplayShowHomeEnabled(true);
+        //getSupportActionBar().setIcon(R.drawable.logo_icon);
 
         // click listeners
         scan_nfc.setOnClickListener(new View.OnClickListener() {
@@ -237,9 +318,10 @@ public class HomeActivity extends AppCompatActivity {
             }
         });
 
-        //runConnectionThread();
+        runConnectionThread();
 
-        //startService(new Intent( this, YourService.class ) );
+        startService(new Intent( this, YourService.class ) );
+
         send.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -248,6 +330,7 @@ public class HomeActivity extends AppCompatActivity {
                 if(isGPSenabled()){
                     if(latitude != null && longitude != null){
                         map();
+                        //saveToSqlite();
                     }else{
                         showAlert("Localisation Error","L'autorisation d'accéder à la localisation du téléphone n'est pas donnée.");
                     }
@@ -264,10 +347,22 @@ public class HomeActivity extends AppCompatActivity {
         });
     }
 
+    public static void closeDrawer(DrawerLayout drawerLayout) {
+
+        if(drawerLayout.isDrawerOpen(GravityCompat.START)){
+            drawerLayout.closeDrawer(GravityCompat.START);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        HomeActivity.closeDrawer(drawerLayout);
+    }
+
 
     public void sendToServer(){
         Cursor cursor=DB.getdata();
-
         try{
             if (cursor.moveToFirst()){
 
@@ -276,70 +371,6 @@ public class HomeActivity extends AppCompatActivity {
                     final String nfc_uuid = cursor.getString(1);
                     final String nrc_qr = cursor.getString(2);
                     final String audit_id = cursor.getString(3);
-
-                    StringRequest stringRequest= new StringRequest(Request.Method.POST, URLs.URL_MAP,
-                            new Response.Listener<String>() {
-                                @Override
-                                public void onResponse(String response) {
-
-                                    try {
-                                        JSONObject jsonObject= new JSONObject(response);
-                                        String success= jsonObject.getString("success");
-                                        if(success.equals("1")){
-
-                                            Toast.makeText(getApplicationContext(), "Le mapping se fait avec succès", Toast.LENGTH_LONG).show();
-                                    /*nfc_qr_tv.setText(null);
-                                    nfc_qr_tv.setVisibility(View.VISIBLE);
-                                    nfc_uuid_tv.setText(null);
-                                    nfc_uuid_tv.setVisibility(View.VISIBLE);
-                                    ticket_tv.setText(null);
-                                    ticket_tv.setVisibility(View.VISIBLE);*/
-                                            /*Nfc.setUUID(null);
-                                            startActivity(new Intent(getApplicationContext(),HomeActivity.class));
-*/
-                                        }else if(success.equals("0")) {
-
-                                            showAlert("Erreur de serveur","Il y a une erreur dans le serveur, veuillez réessayer plus tard.");
-
-                                        }
-
-
-                                    }catch (Exception ee){
-                                        Toast.makeText(getApplicationContext(), " Error", Toast.LENGTH_LONG).show();
-                                    }
-                                }
-
-
-                            },
-                            new Response.ErrorListener() {
-                                @Override
-                                public void onErrorResponse(VolleyError error) {
-
-                                    //showAlert("Erreur de serveur","Il y a une erreur dans le serveur, veuillez réessayer plus tard.");
-                                    Toast.makeText(getApplicationContext(),"Error :"+error.toString(),Toast.LENGTH_LONG).show();
-
-                                }
-                            }){
-                        @Override
-                        protected Map<String, String> getParams() throws AuthFailureError {
-                            Map<String,String> params = new HashMap<>();
-                            params.put("nfc_qr",nfc_qr);
-                            params.put("nfc_uuid",nfc_uuid);
-                            params.put("ticket_qr",nrc_qr);
-                            params.put("id_auditor",audit_id);
-                            params.put("latitude",latitude);
-                            params.put("longitude",longitude);
-                            //params.put("app_version",app_version);
-                            System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
-                            System.out.println(latitude+","+longitude);
-                            return params;
-                        }
-                    };
-                    RequestQueue requestQueue= Volley.newRequestQueue(this);
-                    requestQueue.add(stringRequest);
-
-                    //*************End Register*************
-                    setResult(RESULT_OK, null);
 
                 }
                     /*String varaible1 = cursor.getString(0);
@@ -380,7 +411,7 @@ public class HomeActivity extends AppCompatActivity {
                             @Override
                             public void run() {
                                 if(clicked == 0){
-                                    showDialog();
+                                    //showDialog();
                                 }
 
                             }
@@ -494,6 +525,7 @@ public class HomeActivity extends AppCompatActivity {
 
         final Dialog dialog = builder.create();
         dialog.show();
+        dialog.setCanceledOnTouchOutside(false);
 
         btnOk.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -511,20 +543,60 @@ public class HomeActivity extends AppCompatActivity {
         String ticket_qr = ticket_tv.getText().toString();
         user = sessionManager.getUserDetails();
         String id = user.get(SessionManager.ID);
-        Boolean checkInsertData = DB.insertMapData(nfc_qr,nfc_uuid,ticket_qr,id,"false");
-        if(checkInsertData == true){
-            showDialog();
+
+        LocalDateTime myDateObj = LocalDateTime.now();
+        //System.out.println("Before formatting: " + myDateObj);
+        DateTimeFormatter myFormatObj = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
+
+        String formattedDate = myDateObj.format(myFormatObj);
+        System.out.println("After formatting: " + formattedDate);
+
+        Boolean checkInsertData = DB.insertMapData(nfc_qr,nfc_uuid,ticket_qr,id,latitude,longitude,"0",formattedDate);
+        if(checkInsertData){
+
             /*showAlert("","Les données sont sauvegardées dans le cache avec succés");*/
-            Toast.makeText(getApplicationContext(), "Le mapping se fait avec succès", Toast.LENGTH_LONG).show();
-            Nfc.setUUID(null);
-            startActivity(new Intent(getApplicationContext(),HomeActivity.class));
+            //Toast.makeText(getApplicationContext(), "Le mapping se fait avec succès", Toast.LENGTH_LONG).show();
+            AlertDialog.Builder builder = new AlertDialog.Builder(HomeActivity.this);
+            LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+            View view = inflater.inflate(R.layout.success_send_offline,null);
+            Button btnOk = view.findViewById(R.id.buttonOk);
+            builder.setView(view);
+
+            final Dialog dialog = builder.create();
+            //dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            dialog.show();
+
+            btnOk.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+
+                    dialog.dismiss();
+                    Nfc.setUUID(null);
+                    emptyFields();
+                    startActivity(new Intent(getApplicationContext(),Synchronisation.class));
+
+                }
+            });
+
         }else{
-            Toast.makeText(getApplicationContext(),"Already Inserted", Toast.LENGTH_SHORT).show();
+
+            showAlert("Déjà inséré","Cette mapping est déjà faite");
+            emptyFields();
+            //Toast.makeText(getApplicationContext(),"Error in Inserting data", Toast.LENGTH_SHORT).show();
         }
     }
 
+    public void emptyFields(){
+        nfc_qr_tv.setText(null);
+        ticket_tv.setText(null);
+        nfc_uuid_tv.setText(null);
+
+        nfc_qr_tv.setVisibility(View.GONE);
+        ticket_tv.setVisibility(View.GONE);
+        nfc_uuid_tv.setVisibility(View.GONE);
+    }
     public void map(){
-        //System.out.println("Entred");
+        System.out.println("Entred");
         send.setEnabled(false);
 
         if (!validate()) {
@@ -538,140 +610,185 @@ public class HomeActivity extends AppCompatActivity {
         progressDialog.setMessage("Mapping en cours...");
         progressDialog.show();
 
-        final String ticket_qr = ticket_tv.getText().toString();
-        StringRequest stringRequest= new StringRequest(Request.Method.POST, URLs.URL_CHECK_NRC,
-                new Response.Listener<String>() {
-                    @Override
-                    public void onResponse(String response) {
 
-                        try {
-                            JSONObject jsonObject= new JSONObject(response);
-                            String success= jsonObject.getString("success");
-                            if(success.equals("1")){
 
-                                progressDialog.dismiss();
-                                send.setEnabled(true);
 
+
+
+
+
+        //Thread.sleep(10000);
+        //System.out.println("thread running");
+
+        if (connected){
+
+            final String ticket_qr = ticket_tv.getText().toString();
+            // when connected #############################
+            StringRequest stringRequest= new StringRequest(Request.Method.POST, URLs.URL_CHECK_NRC,
+                    new Response.Listener<String>() {
+                        @Override
+                        public void onResponse(String response) {
+
+                            try {
+                                JSONObject jsonObject= new JSONObject(response);
+                                String success= jsonObject.getString("success");
+                                if(success.equals("1")){
+
+                                    progressDialog.dismiss();
+                                    send.setEnabled(true);
+
+                                    AlertDialog.Builder builder = new AlertDialog.Builder(HomeActivity.this);
+                                    LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                                    View view = inflater.inflate(R.layout.nrc_error_dialog,null);
+                                    Button btnOk = view.findViewById(R.id.buttonOk);
+                                    builder.setView(view);
+
+                                    final Dialog dialog = builder.create();
+                                    //dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+                                    dialog.show();
+
+                                    btnOk.setOnClickListener(new View.OnClickListener() {
+                                        @Override
+                                        public void onClick(View v) {
+
+                                            dialog.dismiss();
+                                            Nfc.setUUID(null);
+                                            emptyFields();
+                                        }
+                                    });
+
+
+                                }else if(success.equals("0")) {
+
+                                    new android.os.Handler().postDelayed(
+                                            new Runnable() {
+                                                public void run() {
+
+                                                    // On complete call either onSignupSuccess or onSignupFailed
+                                                    // depending on success
+                                                    onSendSuccess();
+                                                    progressDialog.dismiss();
+
+                                                    // this scope of code for offline functionality
+
+                                                }
+                                            }, 3000);
+
+                                    // onSignupFailed();
+
+                                }
+
+
+                            }catch (Exception ee){
+                                Toast.makeText(getApplicationContext(), " Error", Toast.LENGTH_LONG).show();
+                            }
+                        }
+
+
+                    },
+                    new Response.ErrorListener() {
+                        @Override
+                        public void onErrorResponse(VolleyError error) {
+                            send.setEnabled(true);
+                            progressDialog.dismiss();
+                            //showAlert("Erreur de serveur","Il y a une erreur dans le serveur, veuillez réessayer plus tard.");
+                            //Toast.makeText(getApplicationContext(),"Error :"+error.toString(),Toast.LENGTH_LONG).show();
+                            String find = "TimeoutError";
+                            String find2 = "Failed to connect to";
+                            boolean val = error.toString().contains(find);
+                            boolean val2 = error.toString().contains(find2);
+                            if(val) {
+                                System.out.println("String found: " + find);
                                 AlertDialog.Builder builder = new AlertDialog.Builder(HomeActivity.this);
                                 LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-                                View view = inflater.inflate(R.layout.nrc_error_dialog,null);
-                                Button btnOk = view.findViewById(R.id.buttonOk);
+                                View view = inflater.inflate(R.layout.no_connection_dialog,null);
+                                Button btnOk = view.findViewById(R.id.try_again);
                                 builder.setView(view);
 
                                 final Dialog dialog = builder.create();
-                                //dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
                                 dialog.show();
+                                dialog.setCanceledOnTouchOutside(false);
 
                                 btnOk.setOnClickListener(new View.OnClickListener() {
                                     @Override
                                     public void onClick(View v) {
-
+                                        clicked = 1;
                                         dialog.dismiss();
                                         Nfc.setUUID(null);
-                                        startActivity(new Intent(getApplicationContext(),HomeActivity.class));
+                                        saveToSqlite();
                                     }
                                 });
+                                //showAlert("Erreur de connexion", "Verifier votre connexion et continue");
+                            }else if(val2){
+                                showAlert("Erreur de serveur", "Réessayer une autre fois s'il vous plait");
 
-
-                            }else if(success.equals("0")) {
-
-                                new android.os.Handler().postDelayed(
-                                        new Runnable() {
-                                            public void run() {
-
-                                                // On complete call either onSignupSuccess or onSignupFailed
-                                                // depending on success
-                                                onSendSuccess();
-                                                progressDialog.dismiss();
-
-                                                // this scope of code for offline functionality
-                       /* try {
-                            Thread.sleep(10000);
-                            System.out.println("thread running");
-
-                            if (isConnectedToThisServer("https://www.google.com/")) {
-                                onSendSuccess();
-                                progressDialog.dismiss();
-                            } else {
-
-                                runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        progressDialog.dismiss();
-                                        android.app.AlertDialog.Builder builder1 = new android.app.AlertDialog.Builder(HomeActivity.this);
-                                        builder1.setMessage("Vue que vous êtes pas connecté, les données seront enregistrés dans le cache. Nous vous informerons dès qu'il seront envoyés au serveur.");
-                                        builder1.setCancelable(true);
-
-                                        builder1.setPositiveButton(
-                                                "OK",
-                                                new DialogInterface.OnClickListener() {
-                                                    public void onClick(DialogInterface dialog, int id) {
-                                                        saveToSqlite();
-                                                    }
-                                                });
-                                        android.app.AlertDialog alert11 = builder1.create();
-                                        alert11.show();
-                                        showDialog();
-
-
-                                    }
-                                });
-
-                            }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }*/
-
-                                            }
-                                        }, 3000);
-
-                                // onSignupFailed();
-
+                            }else{
+                                System.out.println("string not found");
                             }
 
 
-                        }catch (Exception ee){
-                            Toast.makeText(getApplicationContext(), " Error", Toast.LENGTH_LONG).show();
                         }
-                    }
+                    }){
+                @Override
+                protected Map<String, String> getParams() throws AuthFailureError {
+                    Map<String,String> params = new HashMap<>();
+                    params.put("nrc",ticket_qr);
+                    return params;
+                }
+            };
+            RequestQueue requestQueue= Volley.newRequestQueue(HomeActivity.this);
+            requestQueue.add(stringRequest);
+            //*************End Register*************
+            setResult(RESULT_OK, null);
+            // ################## end code when connected
+        } else {
+            //showDialog();
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    progressDialog.dismiss();
+                    /*android.app.AlertDialog.Builder builder1 = new android.app.AlertDialog.Builder(HomeActivity.this);
+                    builder1.setMessage("Vue que vous êtes pas connecté, les données seront enregistrés dans le cache. Nous vous informerons dès qu'il seront envoyés au serveur.");
+                    builder1.setCancelable(true);
 
+                    builder1.setPositiveButton(
+                            "OK",
+                            new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int id) {
+                                    saveToSqlite();
+                                }
+                            });
+                    android.app.AlertDialog alert11 = builder1.create();
+                    alert11.show();*/
 
-                },
-                new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        send.setEnabled(true);
-                        progressDialog.dismiss();
-                        //showAlert("Erreur de serveur","Il y a une erreur dans le serveur, veuillez réessayer plus tard.");
-                        //Toast.makeText(getApplicationContext(),"Error :"+error.toString(),Toast.LENGTH_LONG).show();
-                        String find = "TimeoutError";
-                        String find2 = "Failed to connect to";
-                        boolean val = error.toString().contains(find);
-                        boolean val2 = error.toString().contains(find2);
-                        if(val) {
-                            System.out.println("String found: " + find);
-                            showAlert("Erreur de connexion", "Verifier votre connexion et continue");
-                        }else if(val2){
-                            showAlert("Erreur de serveur", "Le serveur est fermé");
+                    // show dialog connexion
+                    AlertDialog.Builder builder = new AlertDialog.Builder(HomeActivity.this);
+                    LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                    View view = inflater.inflate(R.layout.no_connection_dialog,null);
+                    Button btnOk = view.findViewById(R.id.try_again);
+                    builder.setView(view);
 
-                        }else{
-                            System.out.println("string not found");
+                    final Dialog dialog = builder.create();
+                    dialog.show();
+                    dialog.setCanceledOnTouchOutside(false);
+
+                    btnOk.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            clicked = 1;
+                            dialog.dismiss();
+                            saveToSqlite();
                         }
+                    });
 
 
-                    }
-                }){
-            @Override
-            protected Map<String, String> getParams() throws AuthFailureError {
-                Map<String,String> params = new HashMap<>();
-                params.put("nrc",ticket_qr);
-                return params;
-            }
-        };
-        RequestQueue requestQueue= Volley.newRequestQueue(HomeActivity.this);
-        requestQueue.add(stringRequest);
-        //*************End Register*************
-        setResult(RESULT_OK, null);
+                }
+            });
+
+        }
+
+
+
 
 
     }
@@ -765,7 +882,8 @@ public class HomeActivity extends AppCompatActivity {
 
                                             dialog.dismiss();
                                             Nfc.setUUID(null);
-                                            startActivity(new Intent(getApplicationContext(),HomeActivity.class));
+                                            //startActivity(new Intent(getApplicationContext(),HomeActivity.class));
+                                            emptyFields();
                                         }
                                     });
 
@@ -794,16 +912,36 @@ public class HomeActivity extends AppCompatActivity {
                             boolean val = error.toString().contains(find);
                             boolean val2 = error.toString().contains(find2);
                             if(val) {
+
                                 System.out.println("String found: " + find);
-                                showAlert("Erreur de connexion", "Verifier votre connexion et continue");
+                                AlertDialog.Builder builder = new AlertDialog.Builder(HomeActivity.this);
+                                LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                                View view = inflater.inflate(R.layout.no_connection_dialog,null);
+                                Button btnOk = view.findViewById(R.id.try_again);
+                                builder.setView(view);
+
+                                final Dialog dialog = builder.create();
+                                dialog.show();
+                                dialog.setCanceledOnTouchOutside(false);
+
+                                btnOk.setOnClickListener(new View.OnClickListener() {
+                                    @Override
+                                    public void onClick(View v) {
+                                        clicked = 1;
+                                        dialog.dismiss();
+                                        Nfc.setUUID(null);
+
+                                        saveToSqlite();
+                                    }
+                                });
+                                //showAlert("Erreur de connexion", "Verifier votre connexion et continue");
+
                             }else if(val2){
-                                showAlert("Erreur de serveur", "Le serveur est fermé");
-
-
+                                showAlert("Erreur de serveur", "Réessayer une autre fois s'il vous plait");
                             }else{
                                 System.out.println("string not found");
                             }
-                            //
+
                             //Toast.makeText(getApplicationContext(),"2222 :"+error.toString(),Toast.LENGTH_LONG).show();
 
                         }
@@ -823,6 +961,7 @@ public class HomeActivity extends AppCompatActivity {
                     return params;
                 }
             };
+            stringRequest.setRetryPolicy(new DefaultRetryPolicy(20 * 1000, DefaultRetryPolicy.DEFAULT_MAX_RETRIES, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
             RequestQueue requestQueue= Volley.newRequestQueue(this);
             requestQueue.add(stringRequest);
             //*************End Register*************
