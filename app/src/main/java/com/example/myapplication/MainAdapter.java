@@ -22,6 +22,7 @@ public class MainAdapter extends RecyclerView.Adapter<MainAdapter.ViewHolder> {
     Activity activity;
     ArrayList<String> arrayList;
     ArrayList<Integer> iconsList;
+    public static String app_version = "1.2";
 
     DBHelper DB;
 
@@ -65,7 +66,7 @@ public class MainAdapter extends RecyclerView.Adapter<MainAdapter.ViewHolder> {
                     case 2:
                         AlertDialog.Builder builder = new AlertDialog.Builder(activity);
                         builder.setTitle("App Version");
-                        builder.setMessage("Vous utilisez la version 1.1 de l'application");
+                        builder.setMessage("Vous utilisez la version "+app_version+" de l'application");
                         builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
